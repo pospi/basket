@@ -1,0 +1,80 @@
+#!/bin/env bash
+
+echo Starting new system setup script
+
+# DB_ROOT_PW=my_password
+# DB_NAME=my_dbname
+# NGINX_CONFIG=my_site
+
+declare GENERAL_USER_USERNAME=jsmith
+declare GENERAL_USER_FULL_NAME="Jane Smith"
+
+declare REQUIRED_PACKAGES="vim"
+declare OPTIONAL_PACKAGES="git"
+
+declare UPDATE_PACKAGE_LISTS=yes
+declare UPGRADE_PACKAGES=yes
+
+readonly TOOLS_PATH=tools.bash
+readonly TOOLS_CONFIG_PATH=config/
+
+echo Sourcing tools...
+. ${TOOLS_PATH}
+echo Done sourcing tools
+
+#config_option \
+#    DB_ROOT_PW \
+#    "Root password to set when installing MySQL/PostgreSQL/etc, and to use when creating new databases"
+#
+#config_option \
+#    DB_NAME \
+#    "Name for new database to create" \
+#    must_be_one_word
+#
+#config_option \
+#    NGINX_CONFIG \
+#    "Path to nginx config file for site to configure. Will be placed in nginx's sites-enabled/ directory."\
+#    must_be_file_at '${config}/nginx/${option}.conf'
+
+config_option \
+    GENERAL_USER_USERNAME \
+    "Username for general user account to be created." \
+    must_be_one_word
+config_option \
+    GENERAL_USER_FULL_NAME \
+    "Full name for general user account to be created." 
+
+config_option \
+    UPDATE_PACKAGE_LISTS \
+    "If package source lists (eg apt sources) should be updated" \
+    must_be_yes_or_no
+config_option \
+    UPGRADE_PACKAGES \
+    "If all packages should be upgraded to latest versions before starting" \
+    must_be_yes_or_no
+
+done_creating_config_options
+
+# This performs a sanity check for options configured above
+check_config_options
+
+update_package_lists_if_allowed
+    exit_if_failure
+upgrade_packages_if_allowed
+    exit_if_failure
+
+platform_specific_fixes
+    exit_if_failure
+
+install_packages ${REQUIRED_PACKAGES}
+    exit_if_failure Could not install required packages: ${REQUIRED_PACKAGES}
+
+install_packages ${OPTIONAL_PACKAGES}
+    warn_if_failure Could not install optional packages: ${OPTIONAL_PACKAGES}
+
+create_general_user_account ${GENERAL_USER_USERNAME} ${GENERAL_USER_FULL_NAME} \
+    && install_sudo \
+    && add_user_to_sudoers ${GENERAL_USER_USERNAME} \
+    || exit_if_failure
+
+echo System setup script finished

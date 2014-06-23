@@ -1,0 +1,647 @@
+#!/bin/env bash
+
+readonly SUCCESS=0
+readonly FAILURE=1
+
+# One day, this assumption will prove false...
+readonly ROOT_USERNAME=root
+
+readonly COMPOSER_INSTALL_PATH=/usr/local/bin/composer
+readonly COMPOSER_INSTALLER_URL=https://getcomposer.org/composer.phar
+
+#
+# Base utility commands
+#
+# These exist mostly just to make bash more readable
+#
+
+command_exists() {
+    local command_name=$1
+    command -v "${command_name}" >&- 2>&-
+}
+
+err_msg() {
+    local args=$@
+    echo ${args} >&2
+}
+
+is_var_empty() {
+    local var=$1
+
+    [[ -z $var ]]
+}
+
+is_var_not_empty() {
+    local var=$1
+
+    [[ -n $var ]]
+}
+
+is_var_set() {
+    local var=$1
+
+    # This is true even if $var is set to an empty value
+    [[ -v $var ]]
+}
+
+is_file() {
+    local file=$1
+
+    [[ -f $file ]]
+}
+
+is_dir() {
+    local dir=$1
+
+    [[ -d $dir ]]
+}
+
+is_yes_or_no() {
+    local value=$1 
+
+    case ${value} in
+    (yes | no)
+        return ${SUCCESS}
+        ;;
+    esac
+    return ${FAILURE}
+}
+
+is_one_word() {
+    local value=$1
+
+    local word_count=$(echo "${value}" | wc -w)
+    if [[ ${word_count} = 1 ]]; then
+        return ${SUCCESS}
+    fi
+
+    return ${FAILURE}
+}
+
+resolve_file_path_template() {
+    local file_path_template=$1
+
+    local value=$2
+    local option=${value}
+
+    local config=${TOOLS_CONFIG_PATH}
+
+    eval "echo ${file_path_template}"
+}
+
+is_file_at() {
+    local tested_value=$1
+    local file_path_template=$2
+
+    local file_path=$( \
+        resolve_file_path_template \
+            ${file_path_template} \
+            ${tested_value} \
+    )
+
+    is_file ${file_path}
+}
+
+is_config_file() {
+    local filename=$1
+
+    is_file_at \
+        ${filename} \
+        '${config}/${filename}'
+}
+
+is_config_file_at() {
+    local value=$1
+    local config_file_path_template=$2
+
+    # Prepend '${config}/' to template given
+    local file_path_template=$(
+        echo '${config}/' ${config_file_path_template}
+    )
+    is_file_at ${value} ${file_path_template}
+}
+
+remove_from_array() {
+    # remove_from_array my_array [n]
+    #
+    # Removes item n from a given array, or the first item if no n given
+    #
+    # This is different from unsetting item n, as my_array[n+1] becomes
+    # my_array[n], and so on, and no "empty" items are left in the array.
+
+    local array_name=$1
+    local index_to_remove=${2:-0} # Default to 0 (first item)
+
+    # First use a "nameref" variable to get the desired array by name
+    local -n array=$array_name
+
+    # Unset the item we're removing
+    unset array[${index_to_remove}]
+    # Rebuilt the array removing empty values
+    # This is probably highly inefficient, especially for large arrays
+    array=( "${array[@]}" )
+}
+
+pop_into_from_array() {
+    # pop_into_from_array my_var my_array [n]
+    #
+    # Like remove_from_array, but stores the removed item in a named variable.
+    #
+    # Storing the item into a reference variable is done, rather than echoing
+    # the item before removing it, because of the nature of subshells in bash.
+    #
+    # If we did my_var=$(pop_from_array my_array), we will get the item to be
+    # removed, but my_array will not actually be modified in the calling
+    # environment, as pop_from_array() would run in a subshell.
+
+    local output_var_name=$1
+    local array_name=$2
+    local index_to_remove=${3:-0} # Default to 0 (first item)
+
+    # Use "nameref" variables to get the output variable and target array
+    local -n output_var=$output_var_name
+    local -n array=$array_name
+
+    # Before we remove the item, store it in a dereferenced output variable
+    output_var=${array[${index_to_remove}]}
+    # Use remove_from_array to do the rest
+    remove_from_array ${array_name} ${index_to_remove}
+}
+
+#
+# Scripting commands
+#
+# Useful for describing certain tasks in scripts
+#
+
+exit_if_failure() {
+    local last_exit_code=$?
+    local message=$@
+
+    if [[ "${last_exit_code}" != "0" ]]; then
+        # Show error message if given
+        if is_var_not_empty ${message}; then
+            err_msg "${message} (Exit code: ${last_exit_code})"
+        # Show generic error message otherwise
+        else
+            err_msg "Last command gave non-zero exit code: ${last_exit_code}"
+        fi
+
+        exit ${last_exit_code}
+
+    else
+        return ${SUCCESS}
+
+    fi
+}
+
+warn_if_failure() {
+    local last_exit_code=$?
+    local message=$@
+
+    if [[ "${last_exit_code}" != "0" ]]; then
+        # Show specific error message if given
+        if is_var_not_empty ${message}; then
+            err_msg "${message} (Exit code: ${last_exit_code})"
+        # Show generic error message otherwise
+        else
+            err_msg "Last command gave non-zero exit code: ${last_exit_code}"
+        fi
+    fi
+
+    return ${SUCCESS}
+}
+
+with_sudo() {
+    local command=$@
+
+    # If we're already root, don't use sudo (we may not even have it yet)
+    if [[ "$(whoami)" = "${ROOT_USERNAME}" ]]; then
+        # Just run the given command and return its exit code
+        eval "${command}"
+        return $?
+    fi
+
+    if ! command_exists sudo; then
+        err_msg "Could not find sudo to run command: ${command}"
+        return ${FAILURE}
+    fi
+
+    # We're not root, and we have sudo
+    eval "sudo ${command}"
+}
+
+as_user() {
+    local username=$1
+    local commands=$2
+
+    # TODO The --set-home is used because otherwise ~ is expanded to ~root
+    # There might be a better way to work around this.
+    # Also, current usage requires commands source tools.sh if they need any
+    # of those commands. It'd be great to avoid that somehow.
+    sudo --user="${username}" --set-home bash -c "${commands}"
+}
+
+as_www_user() {
+    local commands=$1
+    # TODO Make this use the appropriate user based on distro
+
+    # www-data is appropriate for Ubuntu at least
+    as_user www-data "${commands}"
+}
+
+#
+# Tools config commands
+#
+# For configuring and checking tools environment and options
+#
+
+config_file() {
+    local file_path=$1
+
+    echo "${TOOLS_CONFIG_PATH}/${file_path}"
+}
+
+change_config_mode() {
+    local mode=$1
+
+    case ${mode} in
+    (interactive)
+        _TOOLS__CONFIG_MODE=interactive
+        return ${SUCCESS}
+        ;;
+    (noninteractive)
+        _TOOLS__CONFIG_MODE=noninteractive
+        return ${SUCCESS}
+        ;;
+    esac
+
+    echo ${mode} is not a valid config mode.
+    return ${FAILURE}
+}
+
+# Create associate arrays for storing config options
+declare -A _TOOLS__CONFIG_OPTIONS_DESCRIPTIONS
+declare -A _TOOLS__CONFIG_OPTIONS_CONSTRAINTS
+
+config_option() {
+    local option_name=$1; shift
+    local option_description=$1; shift
+    local option_constraints=$@
+    
+    _TOOLS__CONFIG_OPTIONS_DESCRIPTIONS[${option_name}]=${option_description}
+    _TOOLS__CONFIG_OPTIONS_CONSTRAINTS[${option_name}]=${option_constraints}
+}
+
+done_creating_config_options() {
+    if is_var_not_empty ${JUST_CREATE_CONFIG}; then
+        echo "Done creating config options"
+        exit ${SUCCESS}
+    fi
+
+    return ${SUCCESS}
+}
+
+check_config_options() {
+    echo Checking config options...
+
+    # ${!var_name[@]} gives you the keys of associative array $var_name
+    local option_names="${!_TOOLS__CONFIG_OPTIONS_DESCRIPTIONS[@]}"
+
+    for option_name in ${option_names}; do
+        # Bash tip:
+        # ${!var_name} gives you the value of the variable named by $var_name
+        local option_value="${!option_name}"
+        local -a option_description=${_TOOLS__CONFIG_OPTIONS_DESCRIPTIONS[$option_name]}
+        local -a option_constraints=( ${_TOOLS__CONFIG_OPTIONS_CONSTRAINTS[$option_name]} )
+
+        # Check that the option has been given a (non-empty) value
+        if is_var_empty ${option_value}; then
+            err_msg "   Config option ${option_name} is empty"
+            return ${FAILURE}
+        fi
+
+        # Check other constraints
+        while is_var_not_empty ${option_constraints}; do
+            local constraint_name="" 
+            pop_into_from_array constraint_name option_constraints
+
+            local constraint_check_command="check_constraint_${constraint_name}"
+
+            if ! command_exists ${constraint_check_command}; then
+                err_msg "Unknown constraint ${constraint_name}"
+                return ${FAILURE}
+            fi
+            
+            ${constraint_check_command} "${option_value}" option_constraints \
+                || {
+                    err_msg "   Invalid value for config option "\
+                            "${option_name}: ${option_value}" \
+                        && return ${FAILURE};
+                }
+        done
+    done
+    echo Done checking config options
+}
+
+check_constraint_must_be_yes_or_no() {
+    local option_value=$1 
+    is_yes_or_no ${option_value}
+}
+
+check_constraint_must_be_one_word() {
+    local option_value=$1
+    is_one_word ${option_value}
+}
+
+check_constraint_must_be_file_at() {
+    local option_value=$1
+    local option_constraints_array_name=$2
+
+    # Get additional constraints arg from constraints array
+    local file_path_template
+    pop_into_from_array file_path_template ${option_constraints_array_name}
+
+    is_file_at ${option_value} ${file_path_template} 
+}
+
+
+#
+# Platform detection
+#
+# This could be a bit more robust.
+
+is_platform() {
+    local platform_name=$1
+
+    grep -i ${platform_name} /etc/issue >/dev/null
+}
+
+#
+# OS package management
+#
+
+using_apt() {
+    command_exists apt-get
+}
+
+using_yum() {
+    command_exists yum
+}
+
+using_pacman() {
+    command_exists pacman
+}
+
+if using_apt; then
+    echo "    System appears to use apt for package management"
+
+    # XXX: Not sure if I should be doing this here
+    # This should help apt-get and debconf be a bit quieter
+    export DEBIAN_FRONTEND=noninteractive
+
+    update_package_lists() {
+        echo "Updating package lists (apt)"
+        with_sudo apt-get -qq update
+    }
+
+    install_packages() {
+        local package_names=$@
+        echo Installing packages: ${package_names}
+        with_sudo apt-get -qq install ${package_names} 1>/dev/null
+    }
+
+    is_package_installed() {
+        local package_name=$1
+        with_sudo dpkg-query -W -f='${Status}' ${package_name} 2>&1 \
+            | grep "ok installed" 1>/dev/null
+    }
+
+    upgrade_packages() {
+        with_sudo apt-get -qq upgrade 1>/dev/null
+    }
+
+fi
+
+if using_yum; then
+    echo "    System appears to use yum for package management"
+    update_package_lists() {
+        echo "Updating package lists (yum)"
+        with_sudo sh -c "yum clean expire-cache && yum check-update"
+    }
+
+    install_packages() {
+        local package_names=$@
+        echo Installing packages: ${package_names}
+        with_sudo yum install -y ${package_names}
+    }
+
+    is_package_installed() {
+        local package_name=$1
+        with_sudo rpm -q --quiet ${package_name}
+    }
+
+    upgrade_packages() {
+        err_msg 'HELP! I still need to implement yum upgrade_packages()'
+        exit ${FAILURE}
+    }
+fi
+
+# OS-agnostic OS package management commands 
+
+update_package_lists_if_allowed() {
+    if [[ ${UPDATE_PACKAGE_LISTS} = 'yes' ]]; then
+        update_package_lists
+    else
+        return ${SUCCESS}
+    fi
+}
+
+upgrade_packages_if_allowed() {
+    if [[ ${UPGRADE_PACKAGES} = 'yes' ]]; then
+        upgrade_packages
+    else
+        return ${SUCCESS}
+    fi
+}
+
+#
+# NPM package management
+#
+npm_global_install_packages() {
+    local package_names=$@
+
+    echo Installing globally npm packages: ${package_names}
+    with_sudo npm install --global ${package_names} 1>/dev/null 2>>~/npm_global_install.log
+}
+
+npm_local_install_packages() {
+    local package_names=$@
+    local working_dir=$(pwd)
+
+    if is_var_empty "${package_names}"; then
+        echo "Installing local npm dependcies (in ${working_dir})"
+    else
+        echo "Installing locally (in ${working_dir}) npm packages: ${package_name}"
+    fi
+
+    # No bin links is used here, because you can't create symlinks in a
+    # VirtualBox Shared Folder if your host OS is Windows
+    npm install --no-bin-links ${package_names} 1>/dev/null 2>>~/npm_local_install.log
+}
+
+#
+# Bower package management
+#
+bower_install() {
+    bower install --config.interactive=false
+}
+
+#
+# Common installs
+#
+
+install_php() {
+    echo Installing PHP...
+    install_packages \
+        php5 php5-cli php5-readline php5-mysql php5-sqlite php5-fpm \
+        php5-imagick php5-xdebug php5-curl
+    echo Done installing PHP.
+}
+
+install_mysql_with_root_passwd() {
+    local mysql_root_passwd=$1
+
+    echo Installing MySQL...
+
+    if is_package_installed mysql-server; then
+        echo MySQL is already installed
+        return 0
+    fi
+
+    # On Ubuntu and Debian we can rely on debconf for configuration
+    if is_platform ubuntu || is_platform debian; then
+        install_packages debconf
+        echo mysql-server-5.5 mysql-server/root_password password ${DB_ROOT_PW} \
+            | with_sudo debconf-set-selections
+        echo mysql-server-5.5 mysql-server/root_password_again password ${DB_ROOT_PW} \
+            | with_sudo debconf-set-selections
+        install_packages mysql-server
+
+    # On Centos, still need to figure out password config
+    elif is_platform centos; then
+        err_msg WARNING: CentOS MySQL installation may still need some work
+
+        install_packages mysql-server
+        mysqladmin -u root password ${DB_ROOT_PW}
+    fi
+
+    echo Done installing MySQL.
+}
+
+install_composer() {
+    echo Installing composer...
+
+    if is_file ${COMPOSER_INSTALL_PATH}; then
+        echo composer is already installed.
+        return 0
+    fi
+
+    with_sudo curl --silent --output ${COMPOSER_INSTALL_PATH} ${COMPOSER_INSTALLER_URL}
+    with_sudo chmod +x ${COMPOSER_INSTALL_PATH}
+    echo Done installing composer.
+}
+
+install_nodejs() {
+    echo Installing node.js...
+
+    if is_package_installed nodejs && which node; then
+        echo node.js is already installed.
+        return 0
+    fi
+
+    install_packages nodejs
+
+    # Some scripts expect the node.js binary to just be called "node", and on
+    # some distros (eg Ubuntu) it's called "nodejs".
+    # This adds a symlink so "node" still works.
+    if ! which node; then
+        # TODO Make this handle `which nodejs` being a symlink itself
+        ln -s `which nodejs` /usr/bin/node
+    fi
+    echo Done installing node.js.
+}
+
+install_npm() {
+    # TODO This could possibly be more robust
+    echo "Installing npm (and node.js if needed)..."
+    install_nodejs
+
+    if ! is_package_installed npm; then
+        echo npm is already installed.
+        return 0
+    fi
+
+    install_packages npm
+    echo Done installing npm.
+}
+
+#
+# Common config tasks
+#
+
+create_mysql_db() {
+    local db_name=$1
+    local mysql_root_passwd=$2
+
+    echo Creating MySQL database ${db_name}...
+
+    if is_dir /var/lib/mysql/${db_name}; then
+        echo MySQL database ${db_name} already exists.
+        return 0
+    fi
+
+    echo "CREATE DATABASE ${db_name}" \
+        | mysql --user=root --password=${mysql_root_passwd}
+
+    echo Done creating MySQL database ${db_name}.
+}
+
+configure_nginx() {
+    local nginx_config_name=$1
+
+    echo Configuring nginx for ${nginx_config_name}...
+    with_sudo bash -c "
+        rm -f /etc/nginx/sites-enabled/default \
+            && cp /vagrant/config/nginx/${nginx_config_name}.conf \
+                /etc/nginx/sites-enabled/${nginx_config_name} \
+            && service nginx restart
+    "
+    echo Done configuring nginx for ${nginx_config_name}.
+}
+
+#
+# Platform-specific fixes
+#
+
+platform_specific_fixes() {
+    if is_platform ubuntu; then
+        ubuntu_language_pack
+    fi
+    return ${SUCCESS}
+}
+
+ubuntu_language_pack() {
+    if ! is_platform ubuntu; then
+        echo "(Not on Ubuntu, not installing lanuage pack)"
+        return ${SUCCESS}
+    fi
+
+    if is_package_installed language-pack-en; then
+        echo "(Ubuntu language pack already installed)"
+        return ${SUCCESS}
+    fi
+
+    install_packages language-pack-en
+    dpkg-reconfigure locales
+}

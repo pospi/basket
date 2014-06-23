@@ -1,0 +1,67 @@
+#!/bin/env bash
+
+declare SUCCESS=0
+
+is_var_not_empty() {
+    local var=$1
+
+    [[ -n $var ]]
+}
+
+err_msg() {
+    local args=$@
+    echo ${args} >&2
+}
+
+exit_if_failure() {
+    local last_exit_code=$?
+    local message=$@
+
+    if [[ "${last_exit_code}" != "0" ]]; then
+        # Show error message if given
+        if is_var_not_empty ${message}; then
+            err_msg "${message} (Exit code: ${last_exit_code})"
+        # Show generic error message otherwise
+        else
+            err_msg "Last command gave non-zero exit code: ${last_exit_code}"
+        fi
+
+        exit ${last_exit_code}
+
+    else
+        return ${SUCCESS}
+
+    fi
+}
+
+warn_if_failure() {
+    local last_exit_code=$?
+    local message=$@
+
+    if [[ "${last_exit_code}" != "0" ]]; then
+        # Show specific error message if given
+        if is_var_not_empty ${message}; then
+            err_msg "${message} (Exit code: ${last_exit_code})"
+        # Show generic error message otherwise
+        else
+            err_msg "Last command gave non-zero exit code: ${last_exit_code}"
+        fi
+    fi
+
+    return ${SUCCESS}
+}
+
+fail_on_three() {
+    local val=$1
+    if (( $val == 3 )); then
+        return 3
+    else
+        return 0
+    fi
+}
+
+echo Starting.
+
+fail_on_three 3
+   exit_if_failure Error!  
+echo Done.

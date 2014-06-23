@@ -1,0 +1,37 @@
+#!/bin/env bash
+
+readonly TOOLS_PATH=../tools
+readonly TOOLS_CONFIG_PATH=./config/
+
+echo Sourcing tools...
+. ${TOOLS_PATH}
+echo Done sourcing tools
+
+readonly TEST_OPTION="abc"
+readonly TEST_YES_NO_OPTION="no"
+readonly TEST_ONE_WORD_OPTION="one_word"
+readonly TEST_FILE_AT="my_site"
+
+config_option \
+    TEST_OPTION \
+    "An option for testing check_config_options."
+
+config_option \
+    TEST_YES_NO_OPTION \
+    "An option which must be yes or no." \
+    must_be_yes_or_no
+
+config_option \
+    TEST_ONE_WORD_OPTION \
+    "An option which must be one word." \
+    must_be_one_word
+
+config_option \
+    TEST_FILE_AT \
+    "An option which must correspond to an existing config file in the nginx subdirectory" \
+    must_be_file_at '${config}/nginx/${option}.conf'
+
+done_creating_config_options
+
+check_config_options \
+    || echo "Checking options failed"
