@@ -19,20 +19,10 @@ function test_pop_should_remove_first_item_from_array() {
     local -a my_array=(apples bananas cherries)
     local popped_item
 
-    local -a expected_final_my_array=(bananas cherries)
-
     pop_into_from_array popped_item my_array
 
-    # Test $my_array after pop
-    if ! [[ "${my_array[@]}" = "${expected_final_my_array[@]}" ]]; then
-        err_msg \
-            "\$my_array should contain (${expected_final_my_array[@]}), "\
-            "contained: (${my_array[@]})"
-        return ${FAILURE}
-    fi
-
-    # If we reach here, all asserts passed
-    return ${SUCCESS}
+    # Test $my_array is now what we expect
+    assert_array_var_equals my_array "bananas cherries"
 }
 
 function main() {

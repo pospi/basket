@@ -709,3 +709,34 @@ function assert_var_equals() {
         return ${SUCCESS}
     fi
 }
+
+function assert_array_var_equals() {
+    # Tests that a named array variable is equal to a given value; if it
+    # doesn't, prints an appropriate error message and returns non-zero.
+    #
+    # The expected value should be given as a string of space separated
+    # values, like the output from "${my_array[@]}".
+    #
+    # By default, exits with $FAILURE if test fails, but a different exit
+    # code can be given as an extra argument.
+    #
+    # Example usage:
+    # $ assert_array_var_equals my_array "expected_item1 expected_item2"
+
+    local var_name=$1
+    local -n _var=${var_name}
+
+    local -a expected_value=$2
+
+    # By default, just return $FAILURE if assert fails
+    local exit_code_on_failure=${3:-${FAILURE}}
+
+    if ! [[ "${_var[@]}" = "${expected_value[@]}" ]]; then
+        err_msg \
+                "\$${var_name} should contain (${expected_value[@]}), " \
+                "contained: (${_var[@]})"
+        return ${exit_code_on_failure}
+    else
+        return ${SUCCESS}
+    fi
+}
