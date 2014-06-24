@@ -14,7 +14,7 @@ function test_pop_should_put_first_item_in_var() {
     pop_into_from_array popped_item my_array
 
     # Test $popped_item after pop
-    if ! [[ "${popped_item}" = ${expected_popped_item} ]]; then
+    if ! [[ "${popped_item}" = "${expected_popped_item}" ]]; then
         err_msg \
                 "\$popped_item should contain \"${expected_popped_item}\", "\
                 "contained: \"${popped_item}\""
