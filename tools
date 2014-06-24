@@ -697,7 +697,7 @@ function assert_var_equals() {
 
     local expected_value=$2
 
-    # By default, just give $FAILURE if assert fails
+    # By default, just return $FAILURE if assert fails
     local exit_code_on_failure=${3:-${FAILURE}}
 
     if ! [[ "${_var}" = "${expected_value}" ]]; then
