@@ -9,20 +9,10 @@ function test_pop_should_put_first_item_in_var() {
     local -a my_array=(apples bananas cherries)
     local popped_item
 
-    local expected_popped_item="apples"
-
     pop_into_from_array popped_item my_array
 
-    # Test $popped_item after pop
-    if ! [[ "${popped_item}" = "${expected_popped_item}" ]]; then
-        err_msg \
-                "\$popped_item should contain \"${expected_popped_item}\", "\
-                "contained: \"${popped_item}\""
-        return ${FAILURE}
-    fi
-
-    # If we reach here, all asserts passed
-    return ${SUCCESS}
+    # Test $popped_item is now what we expect
+    assert_var_equals popped_item "apples"
 }
 
 function test_pop_should_remove_first_item_from_array() {

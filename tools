@@ -682,3 +682,30 @@ function give_test_summary() {
     return ${tests_failed_count}
 }
 
+function assert_var_equals() {
+    # Tests that a named variable is equal to a given value; if it doesn't,
+    # prints an appropriate error message and returns non-zero.
+    #
+    # By default, exits with $FAILURE if test fails, but a different exit
+    # code can be given as an extra argument.
+    #
+    # Example usage:
+    # $ assert_var_equals my_variable "expected value"
+
+    local var_name=$1
+    local -n _var=${var_name}
+
+    local expected_value=$2
+
+    # By default, just give $FAILURE if assert fails
+    local exit_code_on_failure=${3:-${FAILURE}}
+
+    if ! [[ "${_var}" = "${expected_value}" ]]; then
+        err_msg \
+                "\$${var_name} should contain \"${expected_value}\", " \
+                "contained: \"${_var}\""
+        return ${exit_code_on_failure}
+    else
+        return ${SUCCESS}
+    fi
+}
