@@ -15,7 +15,7 @@ declare OPTIONAL_PACKAGES="git"
 declare UPDATE_PACKAGE_LISTS=yes
 declare UPGRADE_PACKAGES=yes
 
-readonly TOOLS_PATH=tools.bash
+readonly TOOLS_PATH=tools
 readonly TOOLS_CONFIG_PATH=config/
 
 echo Sourcing tools...
