@@ -1,0 +1,61 @@
+#!/bin/env bash
+
+echo Setting up dev server
+
+# Change these as you need:
+declare HOSTNAME=my_host
+declare DB_ROOT_PW=my_password
+declare DB_NAME=my_dbname
+declare NGINX_CONFIG=my_site
+declare EXTRA_PACKAGES_TO_INSTALL="sudo vim git"
+
+# You may wish to disable these to save time:
+declare UPDATE_PACKAGE_LISTS=yes
+declare UPGRADE_PACKAGES=yes
+
+# Adjust these to point to the "tools" script and your config directory:
+readonly TOOLS_PATH=tools
+readonly TOOLS_CONFIG_PATH=config/
+
+echo Sourcing tools...
+. ${TOOLS_PATH}
+echo Done sourcing tools
+
+config_option DB_ROOT_PW \
+    "Root password to set for MySQL/PostgreSQL/etc"
+
+config_option DB_NAME \
+    "Name for new database to create" \
+    must_be_one_word
+
+config_option NGINX_CONFIG \
+    "Path to nginx config file for site to configure. Will be placed in nginx's sites-enabled/ directory."\
+    must_be_file_at '${config}/nginx/${option}.conf'
+
+config_option UPDATE_PACKAGE_LISTS \
+    "If package source lists (eg apt sources) should be updated" \
+    must_be_yes_or_no
+config_option UPGRADE_PACKAGES \
+    "If all packages should be upgraded to latest versions before starting" \
+    must_be_yes_or_no
+
+done_creating_config_options
+# This performs a sanity check for options configured above
+check_config_options
+
+update_package_lists_if_enabled
+    exit_if_failure
+upgrade_packages_if_enabled
+    exit_if_failure
+
+platform_specific_fixes
+    exit_if_failure
+
+if is_var_not_empty ${EXTRA_PACKAGES_TO_INSTALL}; then
+    install_packages ${EXTRA_PACKAGES_TO_INSTALL}
+        warn_if_failure \
+                "Could not install all extra packages: " \
+                "${EXTRA_PACKAGES_TO_INSTALL}"
+fi
+
+echo Dev server setup finished
