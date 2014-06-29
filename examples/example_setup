@@ -58,9 +58,9 @@ done_creating_config_options
 # This performs a sanity check for options configured above
 check_config_options
 
-update_package_lists_if_allowed
+update_package_lists_if_enabled
     exit_if_failure
-upgrade_packages_if_allowed
+upgrade_packages_if_enabled
     exit_if_failure
 
 platform_specific_fixes
