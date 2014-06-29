@@ -449,7 +449,7 @@ fi
 
 # OS-agnostic OS package management commands 
 
-update_package_lists_if_allowed() {
+update_package_lists_if_enabled {
     if [[ ${UPDATE_PACKAGE_LISTS} = 'yes' ]]; then
         update_package_lists
     else
@@ -457,7 +457,7 @@ update_package_lists_if_allowed() {
     fi
 }
 
-upgrade_packages_if_allowed() {
+upgrade_packages_if_enabled {
     if [[ ${UPGRADE_PACKAGES} = 'yes' ]]; then
         upgrade_packages
     else
