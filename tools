@@ -613,7 +613,7 @@ configure_nginx() {
     echo Configuring nginx for ${nginx_config_name}...
     with_sudo bash -c "
         rm -f /etc/nginx/sites-enabled/default \
-            && cp /vagrant/config/nginx/${nginx_config_name}.conf \
+            && cp ${TOOLS_CONFIG_PATH}/nginx/${nginx_config_name}.conf \
                 /etc/nginx/sites-enabled/${nginx_config_name} \
             && service nginx restart
     "
