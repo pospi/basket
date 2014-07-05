@@ -7,7 +7,7 @@ declare HOSTNAME=my_host
 declare DB_ROOT_PW=my_password
 declare DB_NAME=my_dbname
 declare NGINX_CONFIG=my_site
-declare EXTRA_PACKAGES_TO_INSTALL="sudo vim git"
+declare OPTIONAL_PACKAGES="sudo vim git"
 
 # You may wish to disable these to save time:
 declare UPDATE_PACKAGE_LISTS=yes
@@ -29,7 +29,7 @@ config_option DB_NAME \
     must_be_one_word
 
 config_option NGINX_CONFIG \
-    "Path to nginx config file for site to configure. Will be placed in nginx's sites-enabled/ directory."\
+    "Name of nginx site to configure and enable."\
     must_be_file_at '${config}/nginx/${option}.conf'
 
 config_option UPDATE_PACKAGE_LISTS \
@@ -51,11 +51,19 @@ upgrade_packages_if_enabled
 platform_specific_fixes
     exit_if_failure
 
-if is_var_not_empty ${EXTRA_PACKAGES_TO_INSTALL}; then
-    install_packages ${EXTRA_PACKAGES_TO_INSTALL}
+install_mysql_with_root_passwd ${DB_ROOT_PW}
+    exit_if_failure "Couldn't install MySQL"
+create_mysql_db ${DB_NAME} ${DB_ROOT_PW}
+    exit_if_failure "Couldn't create MySQL database ${DB_NAME}"
+
+install_packages nginx
+    && configure_nginx ${NGINX_CONFIG}
+
+if ! is_var_empty ${OPTIONAL_PACKAGES}; then
+    install_packages ${OPTIONAL_PACKAGES}
         warn_if_failure \
-                "Could not install all extra packages: " \
-                "${EXTRA_PACKAGES_TO_INSTALL}"
+                "Could not install all optional packages: " \
+                "${OPTIONAL_PACKAGES}"
 fi
 
 echo Dev server setup finished
