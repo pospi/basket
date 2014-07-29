@@ -753,3 +753,11 @@ function assert_array_var_equals() {
         return ${SUCCESS}
     fi
 }
+
+#
+# Waits, confirmations etc
+#
+
+await_input() {
+    read -p "$1" -n 1 -s
+}
