@@ -614,6 +614,19 @@ nodejs__install_npm() {
 # Common config tasks
 #
 
+ensure_hostname() {
+    local host=$1
+
+    if is_platform ubuntu; then
+        sudo echo ${host} > /etc/hostname
+        sudo echo "127.0.0.1       ${host}" >> /etc/hosts
+    elif is_platform fedora; then
+        return ${SUCCESS}
+    fi
+
+    return ${SUCCESS}
+}
+
 mysql__create_db() {
     local db_name=$1
     local mysql_root_passwd=$2
@@ -763,4 +776,12 @@ function assert_array_var_equals() {
     else
         return ${SUCCESS}
     fi
+}
+
+#
+# Waits, confirmations etc
+#
+
+await_input() {
+    read -p "$1" -n 1 -s
 }
