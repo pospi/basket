@@ -1,0 +1,33 @@
+#!/bin/bash
+
+###
+#
+# User management stuff
+# A 'human' is someone who will need to have their own environment i.e. homedir created for them now
+#
+###
+
+user__create() {
+	local username=$1
+
+	with_sudo useradd ${username}
+}
+
+user__create_human() {
+	local username=$1
+
+	with_sudo useradd --create-home ${username}
+}
+
+user__group_create() {
+	local group=$1
+
+	with_sudo groupadd ${group}
+}
+
+user__addto_group() {
+	local username=$1
+	local group=$2
+
+	with_sudo usermod -a -G ${username} ${group}
+}
