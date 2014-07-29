@@ -14,7 +14,7 @@ readonly TEST_FILE_AT="my_site"
 
 config_option \
     TEST_OPTION \
-    "An option for testing check_config_options."
+    "An option for testing config_check_options."
 
 config_option \
     TEST_YES_NO_OPTION \
@@ -31,7 +31,7 @@ config_option \
     "An option which must correspond to an existing config file in the nginx subdirectory" \
     must_be_file_at '${config}/nginx/${option}.conf'
 
-done_creating_config_options
+config_done_creating_options
 
-check_config_options \
+config_check_options \
     || echo "Checking options failed"

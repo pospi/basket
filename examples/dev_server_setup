@@ -39,9 +39,9 @@ config_option UPGRADE_PACKAGES \
     "If all packages should be upgraded to latest versions before starting" \
     must_be_yes_or_no
 
-done_creating_config_options
+config_done_creating_options
 # This performs a sanity check for options configured above
-check_config_options
+config_check_options
 
 update_package_lists_if_enabled
     exit_if_failure
@@ -51,13 +51,13 @@ upgrade_packages_if_enabled
 platform_specific_fixes
     exit_if_failure
 
-install_mysql_with_root_passwd ${DB_ROOT_PW}
+mysql__install_with_root_passwd ${DB_ROOT_PW}
     exit_if_failure "Couldn't install MySQL"
-create_mysql_db ${DB_NAME} ${DB_ROOT_PW}
+mysql__create_db ${DB_NAME} ${DB_ROOT_PW}
     exit_if_failure "Couldn't create MySQL database ${DB_NAME}"
 
 install_packages nginx
-    && configure_nginx ${NGINX_CONFIG}
+    && nginx__configure ${NGINX_CONFIG}
 
 if ! is_var_empty ${OPTIONAL_PACKAGES}; then
     install_packages ${OPTIONAL_PACKAGES}

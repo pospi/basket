@@ -57,7 +57,7 @@ is_dir() {
 }
 
 is_yes_or_no() {
-    local value=$1 
+    local value=$1
 
     case ${value} in
     (yes | no)
@@ -262,7 +262,7 @@ config_file() {
     echo "${TOOLS_CONFIG_PATH}/${file_path}"
 }
 
-change_config_mode() {
+config_change_mode() {
     local mode=$1
 
     case ${mode} in
@@ -288,12 +288,12 @@ config_option() {
     local option_name=$1; shift
     local option_description=$1; shift
     local option_constraints=$@
-    
+
     _TOOLS__CONFIG_OPTIONS_DESCRIPTIONS[${option_name}]=${option_description}
     _TOOLS__CONFIG_OPTIONS_CONSTRAINTS[${option_name}]=${option_constraints}
 }
 
-done_creating_config_options() {
+config_done_creating_options() {
     if is_var_not_empty ${JUST_CREATE_CONFIG}; then
         echo "Done creating config options"
         exit ${SUCCESS}
@@ -302,7 +302,7 @@ done_creating_config_options() {
     return ${SUCCESS}
 }
 
-check_config_options() {
+config_check_options() {
     echo Checking config options...
 
     # ${!var_name[@]} gives you the keys of associative array $var_name
@@ -323,7 +323,7 @@ check_config_options() {
 
         # Check other constraints
         while is_var_not_empty ${option_constraints}; do
-            local constraint_name="" 
+            local constraint_name=""
             pop_into_from_array constraint_name option_constraints
 
             local constraint_check_command="check_constraint_${constraint_name}"
@@ -332,7 +332,7 @@ check_config_options() {
                 err_msg "Unknown constraint ${constraint_name}"
                 return ${FAILURE}
             fi
-            
+
             ${constraint_check_command} "${option_value}" option_constraints \
                 || {
                     err_msg "   Invalid value for config option "\
@@ -345,7 +345,7 @@ check_config_options() {
 }
 
 check_constraint_must_be_yes_or_no() {
-    local option_value=$1 
+    local option_value=$1
     is_yes_or_no ${option_value}
 }
 
@@ -362,7 +362,7 @@ check_constraint_must_be_file_at() {
     local file_path_template
     pop_into_from_array file_path_template ${option_constraints_array_name}
 
-    is_file_at ${option_value} ${file_path_template} 
+    is_file_at ${option_value} ${file_path_template}
 }
 
 
@@ -447,9 +447,9 @@ if using_yum; then
     }
 fi
 
-# OS-agnostic OS package management commands 
+# OS-agnostic OS package management commands
 
-update_package_lists_if_enabled {
+update_package_lists_if_enabled() {
     if [[ ${UPDATE_PACKAGE_LISTS} = 'yes' ]]; then
         update_package_lists
     else
@@ -457,7 +457,7 @@ update_package_lists_if_enabled {
     fi
 }
 
-upgrade_packages_if_enabled {
+upgrade_packages_if_enabled() {
     if [[ ${UPGRADE_PACKAGES} = 'yes' ]]; then
         upgrade_packages
     else
@@ -468,14 +468,14 @@ upgrade_packages_if_enabled {
 #
 # NPM package management
 #
-npm_global_install_packages() {
+npm__global_install_packages() {
     local package_names=$@
 
     echo Installing globally npm packages: ${package_names}
     with_sudo npm install --global ${package_names} 1>/dev/null 2>>~/npm_global_install.log
 }
 
-npm_local_install_packages() {
+npm__local_install_packages() {
     local package_names=$@
     local working_dir=$(pwd)
 
@@ -493,7 +493,7 @@ npm_local_install_packages() {
 #
 # Bower package management
 #
-bower_install() {
+php__bower_install() {
     bower install --config.interactive=false
 }
 
@@ -501,7 +501,7 @@ bower_install() {
 # Common installs
 #
 
-install_php() {
+php__install() {
     echo Installing PHP...
     install_packages \
         php5 php5-cli php5-readline php5-mysql php5-sqlite php5-fpm \
@@ -509,7 +509,7 @@ install_php() {
     echo Done installing PHP.
 }
 
-install_mysql_with_root_passwd() {
+mysql__install_with_root_passwd() {
     local mysql_root_passwd=$1
 
     echo Installing MySQL...
@@ -539,7 +539,7 @@ install_mysql_with_root_passwd() {
     echo Done installing MySQL.
 }
 
-install_composer() {
+php__install_composer() {
     echo Installing composer...
 
     if is_file ${COMPOSER_INSTALL_PATH}; then
@@ -552,7 +552,7 @@ install_composer() {
     echo Done installing composer.
 }
 
-install_nodejs() {
+nodejs__install() {
     echo Installing node.js...
 
     if is_package_installed nodejs && which node; then
@@ -572,10 +572,10 @@ install_nodejs() {
     echo Done installing node.js.
 }
 
-install_npm() {
+nodejs__install_npm() {
     # TODO This could possibly be more robust
     echo "Installing npm (and node.js if needed)..."
-    install_nodejs
+    nodejs__install
 
     if ! is_package_installed npm; then
         echo npm is already installed.
@@ -590,7 +590,7 @@ install_npm() {
 # Common config tasks
 #
 
-create_mysql_db() {
+mysql__create_db() {
     local db_name=$1
     local mysql_root_passwd=$2
 
@@ -607,7 +607,7 @@ create_mysql_db() {
     echo Done creating MySQL database ${db_name}.
 }
 
-configure_nginx() {
+nginx__configure() {
     local nginx_config_name=$1
 
     echo Configuring nginx for ${nginx_config_name}...
