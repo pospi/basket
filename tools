@@ -11,7 +11,7 @@ readonly COMPOSER_INSTALLER_URL=https://getcomposer.org/composer.phar
 
 # Detect base path for resolution in other scripts. @see http://stackoverflow.com/a/246128/141881
 
-tools_path() {
+tools__path() {
     local DIR=""
     local SOURCE="${BASH_SOURCE[0]}"
     while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
@@ -31,7 +31,12 @@ tools_path() {
     echo "$DIR"
 }
 
-echo "    Tools will load from $(tools_path)"
+tools__include() {
+    local path=$1
+    . "$(tools__path)/lib/${path}"
+}
+
+echo "    Tools will load from $(tools__path)"
 
 #
 # Base utility commands
