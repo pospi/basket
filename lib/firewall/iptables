@@ -1,0 +1,50 @@
+#!/bin/bash
+
+###
+#
+# iptables firewall config
+#
+# :WARNING:
+# The order in which you call these commands is very important! Flow from the top of this file
+# to the bottom and you'll be fine.
+#
+###
+
+iptables__config_start() {
+	# allow all from localhost
+	with_sudo iptables -A INPUT -i lo -j ACCEPT
+
+	# allow already established connections
+	with_sudo iptables -A INPUT -i eth0 -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+	# allow SSH or get locked out!
+	with_sudo iptables -A INPUT -p tcp --dport ssh -j ACCEPT
+}
+
+iptables__open_port_tcp() {
+	local port=$1
+	with_sudo iptables -A INPUT -p tcp --dport ${port} -j ACCEPT
+}
+
+iptables__open_port_udp() {
+	local port=$1
+	with_sudo iptables -A INPUT -p udp --dport ${port} -j ACCEPT
+}
+
+iptables__config_finish() {
+	# default to dropping everything unless declared otherwise.
+	# Important to do this after calling iptables__config_start() to add a rule for SSH or you will lock yourself out!
+	with_sudo iptables -P INPUT DROP
+
+	# save rules
+	with_sudo iptables-save > /etc/iptables.rules
+
+	# restore rules on startup
+	with_sudo touch /etc/network/if-pre-up.d/iptablesload
+	with_sudo echo "#!/bin/sh
+iptables-restore < /etc/iptables.rules
+exit 0" > /etc/network/if-pre-up.d/iptablesload
+
+	with_sudo chmod +x /etc/network/if-pre-up.d/iptablesload
+}
+
