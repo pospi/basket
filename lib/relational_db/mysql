@@ -1,0 +1,48 @@
+#!/bin/bash
+
+mysql__install_with_root_passwd() {
+    local mysql_root_passwd=$1
+
+    echo Installing MySQL...
+
+    if is_package_installed mysql-server; then
+        echo MySQL is already installed
+        return 0
+    fi
+
+    # On Ubuntu and Debian we can rely on debconf for configuration
+    if is_platform ubuntu || is_platform debian; then
+        install_packages debconf
+        echo mysql-server-5.5 mysql-server/root_password password ${DB_ROOT_PW} \
+            | with_sudo debconf-set-selections
+        echo mysql-server-5.5 mysql-server/root_password_again password ${DB_ROOT_PW} \
+            | with_sudo debconf-set-selections
+        install_packages mysql-server
+
+    # On Centos, still need to figure out password config
+    elif is_platform centos; then
+        err_msg WARNING: CentOS MySQL installation may still need some work
+
+        install_packages mysql-server
+        mysqladmin -u root password ${DB_ROOT_PW}
+    fi
+
+    echo Done installing MySQL.
+}
+
+mysql__create_db() {
+    local db_name=$1
+    local mysql_root_passwd=$2
+
+    echo Creating MySQL database ${db_name}...
+
+    if is_dir /var/lib/mysql/${db_name}; then
+        echo MySQL database ${db_name} already exists.
+        return 0
+    fi
+
+    echo "CREATE DATABASE ${db_name}" \
+        | mysql --user=root --password=${mysql_root_passwd}
+
+    echo Done creating MySQL database ${db_name}.
+}
