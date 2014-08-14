@@ -559,51 +559,6 @@ npm__local_install_packages() {
 }
 
 #
-# Bower package management
-#
-nodejs__bower_install() {
-    bower install --config.interactive=false
-}
-
-#
-# Common installs
-#
-
-nodejs__install() {
-    echo Installing node.js...
-
-    if is_package_installed nodejs && which node; then
-        echo node.js is already installed.
-        return 0
-    fi
-
-    install_packages nodejs
-
-    # Some scripts expect the node.js binary to just be called "node", and on
-    # some distros (eg Ubuntu) it's called "nodejs".
-    # This adds a symlink so "node" still works.
-    if ! which node; then
-        # TODO Make this handle `which nodejs` being a symlink itself
-        ln -s `which nodejs` /usr/bin/node
-    fi
-    echo Done installing node.js.
-}
-
-nodejs__install_npm() {
-    # TODO This could possibly be more robust
-    echo "Installing npm (and node.js if needed)..."
-    nodejs__install
-
-    if ! is_package_installed npm; then
-        echo npm is already installed.
-        return 0
-    fi
-
-    install_packages npm
-    echo Done installing npm.
-}
-
-#
 # Common config tasks
 #
 
