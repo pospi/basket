@@ -1,0 +1,116 @@
+#!/bin/bash
+
+#
+# XXX NOTE: All of this module is very alpha and should not be used yet
+#
+
+#
+# Tools config commands
+#
+# For configuring and checking tools environment and options
+#
+
+config__set_mode() {
+    local mode=$1
+
+    case ${mode} in
+    (interactive)
+        _TOOLS__CONFIG_MODE=interactive
+        return ${SUCCESS}
+        ;;
+    (noninteractive)
+        _TOOLS__CONFIG_MODE=noninteractive
+        return ${SUCCESS}
+        ;;
+    esac
+
+    echo ${mode} is not a valid config mode.
+    return ${FAILURE}
+}
+
+# Create associate arrays for storing config options
+declare -A _TOOLS__CONFIG_OPTIONS_DESCRIPTIONS
+declare -A _TOOLS__CONFIG_OPTIONS_CONSTRAINTS
+
+config__add_option() {
+    local option_name=$1; shift
+    local option_description=$1; shift
+    local option_constraints=$@
+
+    _TOOLS__CONFIG_OPTIONS_DESCRIPTIONS[${option_name}]=${option_description}
+    _TOOLS__CONFIG_OPTIONS_CONSTRAINTS[${option_name}]=${option_constraints}
+}
+
+config__done_adding_options() {
+    if is_var_not_empty ${JUST_CREATE_CONFIG}; then
+        echo "Done creating config options"
+        exit ${SUCCESS}
+    fi
+
+    return ${SUCCESS}
+}
+
+config__check_options() {
+    echo Checking config options...
+
+    # ${!var_name[@]} gives you the keys of associative array $var_name
+    local option_names="${!_TOOLS__CONFIG_OPTIONS_DESCRIPTIONS[@]}"
+
+    for option_name in ${option_names}; do
+        # Bash tip:
+        # ${!var_name} gives you the value of the variable named by $var_name
+        local option_value="${!option_name}"
+        local -a option_description=${_TOOLS__CONFIG_OPTIONS_DESCRIPTIONS[$option_name]}
+        local -a option_constraints=( ${_TOOLS__CONFIG_OPTIONS_CONSTRAINTS[$option_name]} )
+
+        # Check that the option has been given a (non-empty) value
+        if is_var_empty ${option_value}; then
+            err_msg "   Config option ${option_name} is empty"
+            return ${FAILURE}
+        fi
+
+        # Check other constraints
+        while is_var_not_empty ${option_constraints}; do
+            local constraint_name=""
+            pop_into_from_array constraint_name option_constraints
+
+            local constraint_check_command="config__check_constraint_${constraint_name}"
+
+            if ! command_exists ${constraint_check_command}; then
+                err_msg "Unknown constraint ${constraint_name}"
+                return ${FAILURE}
+            fi
+
+            ${constraint_check_command} "${option_value}" option_constraints \
+                || {
+                    err_msg "   Invalid value for config option "\
+                            "${option_name}: ${option_value}" \
+                        && return ${FAILURE};
+                }
+        done
+    done
+    echo Done checking config options
+}
+
+config__check_constraint_must_be_yes_or_no() {
+    local option_value=$1
+    is_yes_or_no ${option_value}
+}
+
+config__check_constraint_must_be_one_word() {
+    local option_value=$1
+    is_one_word ${option_value}
+}
+
+config__check_constraint_must_be_file_at() {
+    local option_value=$1
+    local option_constraints_array_name=$2
+
+    # Get additional constraints arg from constraints array
+    local file_path_template
+    pop_into_from_array file_path_template ${option_constraints_array_name}
+
+    is_file_at ${option_value} ${file_path_template}
+}
+
+
