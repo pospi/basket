@@ -561,7 +561,7 @@ npm__local_install_packages() {
 #
 # Bower package management
 #
-php__bower_install() {
+nodejs__bower_install() {
     bower install --config.interactive=false
 }
 
