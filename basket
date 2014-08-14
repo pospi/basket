@@ -11,7 +11,7 @@ readonly COMPOSER_INSTALLER_URL=https://getcomposer.org/composer.phar
 
 # Detect base path for resolution in other scripts. @see http://stackoverflow.com/a/246128/141881
 
-tools__path() {
+basket__path() {
     local DIR=""
     local SOURCE="${BASH_SOURCE[0]}"
     while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
@@ -31,12 +31,13 @@ tools__path() {
     echo "$DIR"
 }
 
-tools__include() {
+basket__include() {
     local path=$1
-    . "$(tools__path)/lib/${path}"
+
+    . "$(basket__path)/lib/${path}"
 }
 
-echo "    Tools will load from $(tools__path)"
+echo "    Basket will load from $(basket__path)"
 
 #
 # Base utility commands
@@ -113,7 +114,7 @@ resolve_file_path_template() {
     local value=$2
     local option=${value}
 
-    local config=${TOOLS_CONFIG_PATH}
+    local config=${BASKET_CONFIG_PATH}
 
     eval "echo ${file_path_template}"
 }
@@ -242,12 +243,12 @@ warn_if_failure() {
 }
 
 with_sudo() {
-    local command=$@
+    local commands=$@
 
     # If we're already root, don't use sudo (we may not even have it yet)
     if [[ "$(whoami)" = "${ROOT_USERNAME}" ]]; then
         # Just run the given command and return its exit code
-        eval "${command}"
+        eval "${commands}"
         return $?
     fi
 
@@ -257,27 +258,65 @@ with_sudo() {
     fi
 
     # We're not root, and we have sudo
-    eval "sudo ${command}"
+    eval "sudo bash -c '${commands}'"
+}
+
+get_webserver_user() {
+    # TODO Make this use the appropriate user based on distro
+    # This is appropriate on Ubuntu and I think CentOS
+    # Maybe not everywhere
+    echo "www-data"
+}
+
+get_webserver_home_dir() {
+    # TODO Make this use "eval echo $(www-data)" or similar
+    echo "/var/www/"
+}
+
+create_webserver_home_dir() {
+    # This could perhaps be rewritten as generic
+    # "ensure user has a home dir with sensible perms" command
+
+    local home_dir=$(get_webserver_home_dir)
+    local user=$(get_webserver_user)
+
+    echo Creating ${home_dir} for ${user}...
+
+    with_sudo "\
+        mkdir -p ${home_dir} \
+            && chown ${user}:${user} ${home_dir} \
+            && chmod u=rwx ${home_dir}
+    " && echo Done creating directory ${home_dir} for ${user}.
+}
+
+wrap_commands_in_source_tools() {
+    local commands=$@
+
+    echo ". \"$(basket__path)\" && \"${commands}\""
 }
 
 as_user() {
-    local username=$1
-    local commands=$2
+    local username=$1; shift
+    local commands=$@
+
+    local wrapped_commands=$(
+            wrap_commands_in_source_tools ${commands}
+    )
 
     # TODO The --set-home is used because otherwise ~ is expanded to ~root
     # There might be a better way to work around this.
-    # Also, current usage requires commands source tools.sh if they need any
-    # of those commands. It'd be great to avoid that somehow.
-    sudo --user="${username}" --set-home bash -c "${commands}"
+    sudo \
+        --user="${username}" \
+        --set-home \
+        bash -c "${wrapped_commands}"
 }
 
-as_www_user() {
-    local commands=$1
-    # TODO Make this use the appropriate user based on distro
+as_webserver_user() {
+    local commands=$@
 
-    # www-data is appropriate for Ubuntu at least
-    as_user www-data "${commands}"
+    as_user $(get_webserver_user) "${commands}"
 }
+
 
 #
 # Tools config commands
@@ -288,7 +327,7 @@ as_www_user() {
 config_file() {
     local file_path=$1
 
-    echo "${TOOLS_CONFIG_PATH}/${file_path}"
+    echo "${BASKET_CONFIG_PATH}/${file_path}"
 }
 
 config_change_mode() {
@@ -650,16 +689,24 @@ mysql__create_db() {
 }
 
 nginx__configure() {
-    local nginx_config_name=$1
+    local config_name=$1
 
-    echo Configuring nginx for ${nginx_config_name}...
-    with_sudo bash -c "
+    echo Configuring nginx for ${config_name}...
+
+    local config_path="$(config_file nginx/${config_name}.conf)"
+    local dest_config_path="/etc/nginx/sites-enabled/${nginx_config_name}"
+
+    if ! with_sudo "[[ -f \"${config_path}\" ]]"; then
+        err_msg "Could not find nginx config file at ${config_path}"
+        return ${FAILURE}
+    fi
+
+    with_sudo "\
         rm -f /etc/nginx/sites-enabled/default \
-            && cp ${TOOLS_CONFIG_PATH}/nginx/${nginx_config_name}.conf \
-                /etc/nginx/sites-enabled/${nginx_config_name} \
+            && cp \"${config_path}\" \"${dest_config_path}\" \
             && service nginx restart
     "
-    echo Done configuring nginx for ${nginx_config_name}.
+    echo Done configuring nginx for ${config_name}.
 }
 
 #
@@ -685,7 +732,7 @@ ubuntu_language_pack() {
     fi
 
     install_packages language-pack-en
-    dpkg-reconfigure locales
+    with_sudo dpkg-reconfigure locales
 }
 
 #
