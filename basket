@@ -569,27 +569,6 @@ php__bower_install() {
 # Common installs
 #
 
-php__install() {
-    echo Installing PHP...
-    install_packages \
-        php5 php5-cli php5-readline php5-mysql php5-sqlite php5-fpm \
-        php5-imagick php5-xdebug php5-curl
-    echo Done installing PHP.
-}
-
-php__install_composer() {
-    echo Installing composer...
-
-    if is_file ${COMPOSER_INSTALL_PATH}; then
-        echo composer is already installed.
-        return 0
-    fi
-
-    with_sudo curl --silent --output ${COMPOSER_INSTALL_PATH} ${COMPOSER_INSTALLER_URL}
-    with_sudo chmod +x ${COMPOSER_INSTALL_PATH}
-    echo Done installing composer.
-}
-
 nodejs__install() {
     echo Installing node.js...
 
