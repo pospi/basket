@@ -688,27 +688,6 @@ mysql__create_db() {
     echo Done creating MySQL database ${db_name}.
 }
 
-nginx__configure() {
-    local config_name=$1
-
-    echo Configuring nginx for ${config_name}...
-
-    local config_path="$(config_file nginx/${config_name}.conf)"
-    local dest_config_path="/etc/nginx/sites-enabled/${nginx_config_name}"
-
-    if ! with_sudo "[[ -f \"${config_path}\" ]]"; then
-        err_msg "Could not find nginx config file at ${config_path}"
-        return ${FAILURE}
-    fi
-
-    with_sudo "\
-        rm -f /etc/nginx/sites-enabled/default \
-            && cp \"${config_path}\" \"${dest_config_path}\" \
-            && service nginx restart
-    "
-    echo Done configuring nginx for ${config_name}.
-}
-
 #
 # Platform-specific fixes
 #
