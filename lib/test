@@ -1,0 +1,96 @@
+#!/bin/bash
+
+#
+# Testing utilities
+#
+function test__run_test() {
+    local test_name=$1
+    local tests_failed_count_var_name=$2
+    local -n _tests_failed_count=${tests_failed_count_var_name}
+    local -i test_exit_code
+
+    eval "${test_name}"
+    test_exit_code=$?
+
+    if (( ${test_exit_code} != ${SUCCESS} )); then
+        err_msg "Test ${test_name} failed (Exit code: ${test_exit_code})"
+        err_msg ""
+
+        (( _tests_failed_count++ ))
+        return ${FAILURE}
+    else
+        return ${SUCCESS}
+    fi
+}
+
+function test__give_summary() {
+    local -i tests_failed_count=$1
+    local -i total_tests=$2
+
+    if (( ${tests_failed_count} == 0 )); then
+        echo "All ${total_tests} tests passed"
+    else
+        err_msg "${tests_failed_count} of ${total_tests} tests failed"
+    fi
+
+    return ${tests_failed_count}
+}
+
+function test__assert_var_equals() {
+    # Tests that a named variable is equal to a given value; if it doesn't,
+    # prints an appropriate error message and returns non-zero.
+    #
+    # By default, exits with $FAILURE if test fails, but a different exit
+    # code can be given as an extra argument.
+    #
+    # Example usage:
+    # $ test__assert_var_equals my_variable "expected value"
+
+    local var_name=$1
+    local -n _var=${var_name}
+
+    local expected_value=$2
+
+    # By default, just return $FAILURE if assert fails
+    local exit_code_on_failure=${3:-${FAILURE}}
+
+    if ! [[ "${_var}" = "${expected_value}" ]]; then
+        err_msg \
+                "\$${var_name} should contain \"${expected_value}\", " \
+                "contained: \"${_var}\""
+        return ${exit_code_on_failure}
+    else
+        return ${SUCCESS}
+    fi
+}
+
+function test__assert_array_var_equals() {
+    # Tests that a named array variable is equal to a given value; if it
+    # doesn't, prints an appropriate error message and returns non-zero.
+    #
+    # The expected value should be given as a string of space separated
+    # values, like the output from "${my_array[@]}".
+    #
+    # By default, exits with $FAILURE if test fails, but a different exit
+    # code can be given as an extra argument.
+    #
+    # Example usage:
+    # $ test__assert_array_var_equals my_array "expected_item1 expected_item2"
+
+    local var_name=$1
+    local -n _var=${var_name}
+
+    local -a expected_value=$2
+
+    # By default, just return $FAILURE if assert fails
+    local exit_code_on_failure=${3:-${FAILURE}}
+
+    if ! [[ "${_var[@]}" = "${expected_value[@]}" ]]; then
+        err_msg \
+                "\$${var_name} should contain (${expected_value[@]}), " \
+                "contained: (${_var[@]})"
+        return ${exit_code_on_failure}
+    else
+        return ${SUCCESS}
+    fi
+}
