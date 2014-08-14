@@ -1,0 +1,5 @@
+# Force all text files in the repo to have Unix line-endings
+#
+# This is to avoid problems when, eg the project is cloned in Windows and then
+# mounted in a Linux VM with vagrant, VirtualBox shared folders, etc
+* text eol=lf
