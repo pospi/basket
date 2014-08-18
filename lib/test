@@ -3,6 +3,9 @@
 #
 # Testing utilities
 #
+
+basket__include lib/needs_bash4.3
+
 function test__run_test() {
     local test_name=$1
     local tests_failed_count_var_name=$2
