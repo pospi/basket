@@ -6,6 +6,8 @@ readonly FAILURE=1
 # One day, this assumption will prove false...
 readonly ROOT_USERNAME=root
 
+readonly TIMESTAMP_FORMAT='%Y-%m-%d_%H-%M-%S'
+
 readonly COMPOSER_INSTALL_PATH=/usr/local/bin/composer
 readonly COMPOSER_INSTALLER_URL=https://getcomposer.org/composer.phar
 
@@ -269,6 +271,31 @@ config_file() {
     echo "${BASKET_CONFIG_PATH}/${file_path}"
 }
 
+timestamp() {
+    echo $(date +${TIMESTAMP_FORMAT})
+}
+
+pushd_q() {
+    # Quiet version of pushd.
+    #
+    # Ordinary pushd prints the state of its directory stack whenever its
+    # called. This is undesired in a script.
+    local args=$@
+
+    # FYI: pushd is like cd, but it saves the current directory before changing.
+    # You can then call popd to get back to the previous directory.
+    pushd "${args}" > /dev/null
+}
+
+popd_q() {
+    # Quiet version of popd
+    #
+    # Ordinary popd prints the state of its directory stack whenever its
+    # called. This is undesired in a script.
+    local args=$@
+
+    popd "${args}" > /dev/null
+}
 
 
 #
