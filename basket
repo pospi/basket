@@ -6,8 +6,6 @@ readonly FAILURE=1
 # One day, this assumption will prove false...
 readonly ROOT_USERNAME=root
 
-readonly TIMESTAMP_FORMAT='%Y-%m-%d_%H-%M-%S'
-
 readonly COMPOSER_INSTALL_PATH=/usr/local/bin/composer
 readonly COMPOSER_INSTALLER_URL=https://getcomposer.org/composer.phar
 
@@ -282,7 +280,7 @@ timestamp() {
     #
     #     ./my_long_script > my_log_file_$(timestamp).log
     #
-    echo $(date +${TIMESTAMP_FORMAT})
+    date +"%Y-%m-%d_%H-%M-%S"
 }
 
 pushd_q() {
