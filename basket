@@ -272,6 +272,16 @@ config_file() {
 }
 
 timestamp() {
+    # Echoes a timestamp from the current time, suitable for use in filenames.
+    #
+    # Example output, called at 1:37pm 19th August 2014:
+    #
+    #     2014-08-19_13-37-01
+    #
+    # Example usage:
+    #
+    #     ./my_long_script > my_log_file_$(timestamp).log
+    #
     echo $(date +${TIMESTAMP_FORMAT})
 }
 
