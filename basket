@@ -323,6 +323,7 @@ if using_apt; then
     }
 
     upgrade_packages() {
+        echo "Upgrading packages with pending upgrades (apt)"
         with_sudo apt-get -qq upgrade 1>/dev/null
     }
 
@@ -331,24 +332,38 @@ fi
 if using_yum; then
     echo "    System appears to use yum for package management"
     update_package_lists() {
+        local return_code=0
+
         echo "Updating package lists (yum)"
-        with_sudo sh -c "yum clean expire-cache && yum check-update"
+        with_sudo "\
+            yum clean --quiet --assumeyes expire-cache \
+                && yum check-update --quiet --assumeyes
+        "
+        return_code=$?
+
+        if [[ "${return_code}" = "100" ]]; then
+            # Return code 100 means "Updates available". Maybe we should echo
+            # something about this.
+            return_code=0
+        fi
+
+        return ${return_code}
     }
 
     install_packages() {
         local package_names=$@
         echo Installing packages: ${package_names}
-        with_sudo yum install -y ${package_names}
+        with_sudo "yum install --quiet --assumeyes ${package_names}"
     }
 
     is_package_installed() {
         local package_name=$1
-        with_sudo rpm -q --quiet ${package_name}
+        with_sudo rpm --quiet ${package_name}
     }
 
     upgrade_packages() {
-        err_msg 'HELP! I still need to implement yum upgrade_packages()'
-        exit ${FAILURE}
+        echo "Upgrading packages with pending upgrades (yum)"
+        with_sudo yum update --quiet --assumeyes
     }
 fi
 
