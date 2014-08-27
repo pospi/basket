@@ -202,7 +202,7 @@ with_sudo() {
     fi
 
     # We're not root, and we have sudo
-    eval "sudo bash -c '${commands}'"
+    as_user "${ROOT_USERNAME}" "${commands}"
 }
 
 get_webserver_user() {
@@ -233,10 +233,10 @@ create_webserver_home_dir() {
     " && echo Done creating directory ${home_dir} for ${user}.
 }
 
-wrap_commands_in_source_tools() {
+with_basket_sourced() {
     local commands=$@
 
-    echo ". \"$(basket__path)\" && \"${commands}\""
+    echo ". \"$(basket__path)/basket\"; ${commands} "
 }
 
 as_user() {
@@ -244,21 +244,24 @@ as_user() {
     local commands=$@
 
     local wrapped_commands=$(
-            wrap_commands_in_source_tools ${commands}
+            with_basket_sourced ${commands}
     )
 
     # TODO The --set-home is used because otherwise ~ is expanded to ~root
     # There might be a better way to work around this.
+    #
+    # This would be "sudo --user=... --set-home bash ...", but some older
+    # sudo versions don't support long option names (eg Amazon Linux's)
     sudo \
-        --user="${username}" \
-        --set-home \
+        -u "${username}" \
+        -H \
         bash -c "${wrapped_commands}"
 }
 
 as_webserver_user() {
     local commands=$@
 
-    as_user $(get_webserver_user) "${commands}"
+    as_user "$(get_webserver_user)" "${commands}"
 }
 
 config_file() {
@@ -312,7 +315,7 @@ popd_q() {
 is_platform() {
     local platform_name=$1
 
-    grep -i ${platform_name} /etc/issue >/dev/null
+    grep -i "${platform_name}" /etc/issue >/dev/null
 }
 
 #
