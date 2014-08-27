@@ -142,6 +142,14 @@ is_config_file_at() {
     is_file_at ${value} ${file_path_template}
 }
 
+find_replace_in_file() {
+    local find_pattern=$1
+    local replace_string=$2
+    local file_path=$3
+
+    ex -s -c "%substitute/${find_pattern}/${replace_string}/g|x" "${file_path}"
+}
+
 #
 # Scripting commands
 #
@@ -433,6 +441,23 @@ ensure_hostname() {
     fi
 
     return ${SUCCESS}
+}
+
+ensure_fqdn_hostname() {
+    local fqdn_hostname=$1
+    # A reboot may be required after running this command.
+
+    if is_platform "Amazon Linux"; then
+        with_sudo "\
+                find_replace_in_file \
+                    \"^HOSTNAME=.*$\" \
+                    \"HOSTNAME=${fqdn_hostname}\" \
+                    /etc/sysconfig/network \
+        " && return ${SUCCESS}
+    else
+        err_msg "Platform not supported"
+        return ${FAILURE}
+    fi
 }
 
 #
