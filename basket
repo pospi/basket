@@ -37,8 +37,6 @@ basket__include() {
     . "$(basket__path)/lib/${path}"
 }
 
-echo "    Basket will load from $(basket__path)"
-
 #
 # Base utility commands
 #
@@ -334,8 +332,6 @@ using_pacman() {
 }
 
 if using_apt; then
-    echo "    System appears to use apt for package management"
-
     # XXX: Not sure if I should be doing this here
     # This should help apt-get and debconf be a bit quieter
     export DEBIAN_FRONTEND=noninteractive
@@ -365,7 +361,6 @@ if using_apt; then
 fi
 
 if using_yum; then
-    echo "    System appears to use yum for package management"
     update_package_lists() {
         local return_code=0
 
