@@ -377,8 +377,8 @@ if using_yum; then
 
         echo "Updating package lists (yum)"
         with_sudo "\
-            yum clean --quiet --assumeyes expire-cache \
-                && yum check-update --quiet --assumeyes
+            yum clean --quiet -y expire-cache \
+                && yum check-update --quiet -y
         "
         return_code=$?
 
@@ -394,7 +394,7 @@ if using_yum; then
     install_packages() {
         local package_names=$@
         echo Installing packages: ${package_names}
-        with_sudo "yum install --quiet --assumeyes ${package_names}"
+        with_sudo "yum install --quiet -y ${package_names}"
     }
 
     is_package_installed() {
@@ -404,7 +404,7 @@ if using_yum; then
 
     upgrade_packages() {
         echo "Upgrading packages with pending upgrades (yum)"
-        with_sudo yum update --quiet --assumeyes
+        with_sudo yum update --quiet -y
     }
 fi
 
