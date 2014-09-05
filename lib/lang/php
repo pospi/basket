@@ -7,6 +7,9 @@ php__install() {
         php5-imagick php5-xdebug php5-curl \
         php php-cli php-readline php-mysql php-fpm php-curl
     echo Done installing PHP.
+
+    # :TODO: some distros (Centos 6, possibly others) do not have yum packages for php's imagick, xdebug and sqlite libraries.
+    # Will have to detect this and install PECL to load those in.
 }
 
 php__install_composer() {
