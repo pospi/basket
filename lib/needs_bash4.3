@@ -1,0 +1,65 @@
+#!/bin/env bash
+
+#
+# This includes functions which would be in core basket, but rely on particular
+# features of bash 4.3, which Amazon Linux in particular lacks
+#
+
+#
+# TODO Make this exit if Bash version is too low (eg check BASH_VERSINFO)
+#
+
+is_var_set() {
+    local var=$1
+
+    # This is true even if $var is set to an empty value
+    [[ -v $var ]]
+}
+
+remove_from_array() {
+    # remove_from_array my_array [n]
+    #
+    # Removes item n from a given array, or the first item if no n given
+    #
+    # This is different from unsetting item n, as my_array[n+1] becomes
+    # my_array[n], and so on, and no "empty" items are left in the array.
+
+    local array_name=$1
+    local index_to_remove=${2:-0} # Default to 0 (first item)
+
+    # First use a "nameref" variable to get the desired array by name
+    local -n array=$array_name
+
+    # Unset the item we're removing
+    unset array[${index_to_remove}]
+    # Rebuilt the array removing empty values
+    # This is probably highly inefficient, especially for large arrays
+    array=( "${array[@]}" )
+}
+
+pop_into_from_array() {
+    # pop_into_from_array my_var my_array [n]
+    #
+    # Like remove_from_array, but stores the removed item in a named variable.
+    #
+    # Storing the item into a reference variable is done, rather than echoing
+    # the item before removing it, because of the nature of subshells in bash.
+    #
+    # If we did my_var=$(pop_from_array my_array), we will get the item to be
+    # removed, but my_array will not actually be modified in the calling
+    # environment, as pop_from_array() would run in a subshell.
+
+    local output_var_name=$1
+    local array_name=$2
+    local index_to_remove=${3:-0} # Default to 0 (first item)
+
+    # Use "nameref" variables to get the output variable and target array
+    local -n output_var=$output_var_name
+    local -n array=$array_name
+
+    # Before we remove the item, store it in a dereferenced output variable
+    output_var=${array[${index_to_remove}]}
+    # Use remove_from_array to do the rest
+    remove_from_array ${array_name} ${index_to_remove}
+}
+

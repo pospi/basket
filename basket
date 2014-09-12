@@ -37,8 +37,6 @@ basket__include() {
     . "$(basket__path)/lib/${path}"
 }
 
-echo "    Basket will load from $(basket__path)"
-
 #
 # Base utility commands
 #
@@ -47,7 +45,7 @@ echo "    Basket will load from $(basket__path)"
 
 command_exists() {
     local command_name=$1
-    command -v "${command_name}" >&- 2>&-
+    command -v "${command_name}" 1>/dev/null 2>/dev/null
 }
 
 err_msg() {
@@ -65,13 +63,6 @@ is_var_not_empty() {
     local var=$1
 
     [[ -n $var ]]
-}
-
-is_var_set() {
-    local var=$1
-
-    # This is true even if $var is set to an empty value
-    [[ -v $var ]]
 }
 
 is_file() {
@@ -151,51 +142,12 @@ is_config_file_at() {
     is_file_at ${value} ${file_path_template}
 }
 
-remove_from_array() {
-    # remove_from_array my_array [n]
-    #
-    # Removes item n from a given array, or the first item if no n given
-    #
-    # This is different from unsetting item n, as my_array[n+1] becomes
-    # my_array[n], and so on, and no "empty" items are left in the array.
+find_replace_in_file() {
+    local find_pattern=$1
+    local replace_string=$2
+    local file_path=$3
 
-    local array_name=$1
-    local index_to_remove=${2:-0} # Default to 0 (first item)
-
-    # First use a "nameref" variable to get the desired array by name
-    local -n array=$array_name
-
-    # Unset the item we're removing
-    unset array[${index_to_remove}]
-    # Rebuilt the array removing empty values
-    # This is probably highly inefficient, especially for large arrays
-    array=( "${array[@]}" )
-}
-
-pop_into_from_array() {
-    # pop_into_from_array my_var my_array [n]
-    #
-    # Like remove_from_array, but stores the removed item in a named variable.
-    #
-    # Storing the item into a reference variable is done, rather than echoing
-    # the item before removing it, because of the nature of subshells in bash.
-    #
-    # If we did my_var=$(pop_from_array my_array), we will get the item to be
-    # removed, but my_array will not actually be modified in the calling
-    # environment, as pop_from_array() would run in a subshell.
-
-    local output_var_name=$1
-    local array_name=$2
-    local index_to_remove=${3:-0} # Default to 0 (first item)
-
-    # Use "nameref" variables to get the output variable and target array
-    local -n output_var=$output_var_name
-    local -n array=$array_name
-
-    # Before we remove the item, store it in a dereferenced output variable
-    output_var=${array[${index_to_remove}]}
-    # Use remove_from_array to do the rest
-    remove_from_array ${array_name} ${index_to_remove}
+    ex -s -c "%substitute/${find_pattern}/${replace_string}/g|x" "${file_path}"
 }
 
 #
@@ -258,7 +210,7 @@ with_sudo() {
     fi
 
     # We're not root, and we have sudo
-    eval "sudo bash -c '${commands}'"
+    as_user "${ROOT_USERNAME}" "${commands}"
 }
 
 get_webserver_user() {
@@ -289,10 +241,10 @@ create_webserver_home_dir() {
     " && echo Done creating directory ${home_dir} for ${user}.
 }
 
-wrap_commands_in_source_tools() {
+with_basket_sourced() {
     local commands=$@
 
-    echo ". \"$(basket__path)\" && \"${commands}\""
+    echo ". \"$(basket__path)/basket\"; ${commands} "
 }
 
 as_user() {
@@ -300,21 +252,24 @@ as_user() {
     local commands=$@
 
     local wrapped_commands=$(
-            wrap_commands_in_source_tools ${commands}
+            with_basket_sourced ${commands}
     )
 
     # TODO The --set-home is used because otherwise ~ is expanded to ~root
     # There might be a better way to work around this.
+    #
+    # This would be "sudo --user=... --set-home bash ...", but some older
+    # sudo versions don't support long option names (eg Amazon Linux's)
     sudo \
-        --user="${username}" \
-        --set-home \
+        -u "${username}" \
+        -H \
         bash -c "${wrapped_commands}"
 }
 
 as_webserver_user() {
     local commands=$@
 
-    as_user $(get_webserver_user) "${commands}"
+    as_user "$(get_webserver_user)" "${commands}"
 }
 
 config_file() {
@@ -323,6 +278,41 @@ config_file() {
     echo "${BASKET_CONFIG_PATH}/${file_path}"
 }
 
+timestamp() {
+    # Echoes a timestamp from the current time, suitable for use in filenames.
+    #
+    # Example output, called at 1:37pm 19th August 2014:
+    #
+    #     2014-08-19_13-37-01
+    #
+    # Example usage:
+    #
+    #     ./my_long_script > my_log_file_$(timestamp).log
+    #
+    date +"%Y-%m-%d_%H-%M-%S"
+}
+
+pushd_q() {
+    # Quiet version of pushd.
+    #
+    # Ordinary pushd prints the state of its directory stack whenever its
+    # called. This is undesired in a script.
+    local args=$@
+
+    # FYI: pushd is like cd, but it saves the current directory before changing.
+    # You can then call popd to get back to the previous directory.
+    pushd "${args}" > /dev/null
+}
+
+popd_q() {
+    # Quiet version of popd
+    #
+    # Ordinary popd prints the state of its directory stack whenever its
+    # called. This is undesired in a script.
+    local args=$@
+
+    popd "${args}" > /dev/null
+}
 
 
 #
@@ -333,7 +323,7 @@ config_file() {
 is_platform() {
     local platform_name=$1
 
-    grep -i ${platform_name} /etc/issue >/dev/null
+    grep -i "${platform_name}" /etc/issue >/dev/null
 }
 
 #
@@ -353,8 +343,6 @@ using_pacman() {
 }
 
 if using_apt; then
-    echo "    System appears to use apt for package management"
-
     # XXX: Not sure if I should be doing this here
     # This should help apt-get and debconf be a bit quieter
     export DEBIAN_FRONTEND=noninteractive
@@ -377,32 +365,46 @@ if using_apt; then
     }
 
     upgrade_packages() {
+        echo "Upgrading packages with pending upgrades (apt)"
         with_sudo apt-get -qq upgrade 1>/dev/null
     }
 
 fi
 
 if using_yum; then
-    echo "    System appears to use yum for package management"
     update_package_lists() {
+        local return_code=0
+
         echo "Updating package lists (yum)"
-        with_sudo sh -c "yum clean expire-cache && yum check-update"
+        with_sudo "\
+            yum clean --quiet -y expire-cache \
+                && yum check-update --quiet -y
+        "
+        return_code=$?
+
+        if [[ "${return_code}" = "100" ]]; then
+            # Return code 100 means "Updates available". Maybe we should echo
+            # something about this.
+            return_code=0
+        fi
+
+        return ${return_code}
     }
 
     install_packages() {
         local package_names=$@
         echo Installing packages: ${package_names}
-        with_sudo yum install -y ${package_names}
+        with_sudo "yum install --quiet -y ${package_names}"
     }
 
     is_package_installed() {
         local package_name=$1
-        with_sudo rpm -q --quiet ${package_name}
+        with_sudo rpm --quiet ${package_name}
     }
 
     upgrade_packages() {
-        err_msg 'HELP! I still need to implement yum upgrade_packages()'
-        exit ${FAILURE}
+        echo "Upgrading packages with pending upgrades (yum)"
+        with_sudo yum update --quiet -y
     }
 fi
 
@@ -439,6 +441,23 @@ ensure_hostname() {
     fi
 
     return ${SUCCESS}
+}
+
+ensure_fqdn_hostname() {
+    local fqdn_hostname=$1
+    # A reboot may be required after running this command.
+
+    if is_platform "Amazon Linux"; then
+        with_sudo "\
+                find_replace_in_file \
+                    \"^HOSTNAME=.*$\" \
+                    \"HOSTNAME=${fqdn_hostname}\" \
+                    /etc/sysconfig/network \
+        " && return ${SUCCESS}
+    else
+        err_msg "Platform not supported"
+        return ${FAILURE}
+    fi
 }
 
 #
