@@ -1,5 +1,7 @@
 #!/bin/bash
 
+basket__include package_management/yum
+
 php__install() {
     echo Installing PHP...
     install_packages \
@@ -11,6 +13,33 @@ php__install() {
 
     # :TODO: some distros (Centos 6, possibly others) do not have yum packages for php's imagick, xdebug and sqlite libraries.
     # Will have to detect this and install PECL to load those in.
+}
+
+php__install_5_3() {
+    echo Installing PHP 5.3...
+
+    if using_yum; then
+        if yum__package_exists 'php-5.3.*'; then
+            local php53="php"
+        elif yum__package_exists 'php53'; then
+            local php53="php53"
+        else
+            err_msg "Couldn't confidently determine which package provides PHP 5.3"
+            return ${FAILURE}
+        fi
+
+        # Thus far, tested on Amazon Linux
+        install_packages \
+            ${php53} ${php53}-cli ${php53}-readline ${php53}-mysql \
+            ${php53}-sqlite ${php53}-fpm ${php53}-imagick \
+            ${php53}-xdebug ${php53}-curl ${php53}-mcrypt
+    else
+        # XXX TODO non-yum installs still needs work
+        err_msg "PHP 5.3 install on non-yum systems not supported yet"
+        return ${FAILURE}
+    fi
+
+    echo Done installing PHP 5.3
 }
 
 php__install_composer() {

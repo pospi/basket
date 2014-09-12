@@ -1,5 +1,27 @@
 #!/bin/bash
 
+basket__include package_management/yum
+
+apache__install_2_2() {
+    if using_yum; then
+        if yum__package_exists 'httpd-2.2.*'; then
+            local apache="httpd"
+        elif yum__package_exists 'httpd22'; then
+            local apache="httpd22"
+        else
+            err_msg "Couldn't confidently determine which package provides PHP 5.3"
+            return ${FAILURE}
+        fi
+
+        install_packages "${apache}"
+        return ${SUCCESS}
+    else
+        # XXX TODO non-yum installs still needs work
+        err_msg "Apache 2.2 install on non-yum systems not supported yet"
+        return ${FAILURE}
+    fi
+}
+
 apache__configure() {
     local config_name=$1
 
