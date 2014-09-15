@@ -4,13 +4,22 @@ basket__include package_management/yum
 
 php__install() {
     echo Installing PHP...
-    install_packages \
-        php5 php5-cli php5-readline php5-mysql php5-sqlite php5-fpm \
-        php5-imagick php5-xdebug php5-curl php5-mcrypt \
-        php php-cli php-readline php-mysql php-sqlite php-fpm \
-        php-imagick php-xdebug php-curl php-mcrypt
-    echo Done installing PHP.
 
+    # TODO: This really needs to be more robust
+    if using_yum; then
+        install_packages \
+            php php-cli php-readline php-mysql php-sqlite php-fpm \
+            php-imagick php-xdebug php-curl php-mcrypt
+    elif using_apt; then
+        install_packages \
+            php5 php5-cli php5-readline php5-mysql php5-sqlite php5-fpm \
+            php5-imagick php5-xdebug php5-curl php5-mcrypt \
+    else
+        err_msg "Currently this only supports Ubuntu/Debian and Amazon Linux"
+        return ${FAILURE}
+    fi
+
+    echo Done installing PHP.
     # :TODO: some distros (Centos 6, possibly others) do not have yum packages for php's imagick, xdebug and sqlite libraries.
     # Will have to detect this and install PECL to load those in.
 }
