@@ -14,6 +14,10 @@ apache__install_2_2() {
         fi
 
         install_packages "${apache}"
+
+        with_sudo chkconfig httpd on
+        with_sudo service httpd start
+
         return ${SUCCESS}
     else
         # XXX TODO non-yum installs still needs work
