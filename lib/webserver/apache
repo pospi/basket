@@ -9,7 +9,7 @@ apache__install_2_2() {
         elif yum__package_exists 'httpd22'; then
             local apache="httpd22"
         else
-            err_msg "Couldn't confidently determine which package provides PHP 5.3"
+            err_msg "Couldn't confidently determine which package provides Apache 2.2"
             return ${FAILURE}
         fi
 
@@ -22,6 +22,30 @@ apache__install_2_2() {
     else
         # XXX TODO non-yum installs still needs work
         err_msg "Apache 2.2 install on non-yum systems not supported yet"
+        return ${FAILURE}
+    fi
+}
+
+apache__install_2_4() {
+    if using_yum; then
+        if yum__package_exists 'httpd-2.4.*'; then
+            local apache="httpd"
+        elif yum__package_exists 'httpd24'; then
+            local apache="httpd24"
+        else
+            err_msg "Couldn't confidently determine which package provides Apache 2.4"
+            return ${FAILURE}
+        fi
+
+        install_packages "${apache}"
+
+        with_sudo chkconfig httpd on
+        with_sudo service httpd start
+
+        return ${SUCCESS}
+    else
+        # XXX TODO non-yum installs still needs work
+        err_msg "Apache 2.4 install on non-yum systems not supported yet"
         return ${FAILURE}
     fi
 }

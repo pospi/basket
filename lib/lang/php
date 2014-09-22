@@ -51,6 +51,33 @@ php__install_5_3() {
     echo Done installing PHP 5.3
 }
 
+php__install_5_5() {
+    echo Installing PHP 5.5...
+
+    if using_yum; then
+        if yum__package_exists 'php-5.5.*'; then
+            local php55="php"
+        elif yum__package_exists 'php55'; then
+            local php55="php55"
+        else
+            err_msg "Couldn't confidently determine which package provides PHP 5.5"
+            return ${FAILURE}
+        fi
+
+        # Thus far, tested on Amazon Linux
+        install_packages \
+            ${php55} ${php55}-cli ${php55}-readline ${php55}-mysqlnd \
+            ${php55}-sqlite ${php55}-fpm ${php55}-imagick \
+            ${php55}-xdebug ${php55}-curl ${php55}-mcrypt ${php55}-xml
+    else
+        # XXX TODO non-yum installs still needs work
+        err_msg "PHP 5.5 install on non-yum systems not supported yet"
+        return ${FAILURE}
+    fi
+
+    echo Done installing PHP 5.5
+}
+
 php__install_composer() {
     echo Installing composer...
 
