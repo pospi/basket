@@ -309,9 +309,7 @@ popd_q() {
     #
     # Ordinary popd prints the state of its directory stack whenever its
     # called. This is undesired in a script.
-    local args=$@
-
-    popd "${args}" > /dev/null
+    popd > /dev/null
 }
 
 
