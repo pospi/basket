@@ -460,6 +460,25 @@ ensure_fqdn_hostname() {
     fi
 }
 
+set_timezone() {
+    local timezone_name=$1 # eg "Australia/Brisbane"
+
+    #
+    # TODO: ADD SUPPORT for Amazon Linux
+    #
+    if is_platform "Ubuntu"; then
+        # This would probably work for Debian too.
+        with_sudo "\
+                apt-get install tzdata \
+                && echo "${timezone_name}" > /etc/timezone \
+                && dpkg-reconfigure -f noninteractive tzdata \
+        " && return ${SUCCESS}
+    else
+        err_msg "Platform not supported"
+        return ${FAILURE}
+    fi
+}
+
 #
 # Platform-specific fixes
 #
