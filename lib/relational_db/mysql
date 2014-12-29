@@ -13,9 +13,9 @@ mysql__install_with_root_passwd() {
     # On Ubuntu and Debian we can rely on debconf for configuration
     if is_platform ubuntu || is_platform debian; then
         install_packages debconf
-        echo mysql-server-5.5 mysql-server/root_password password ${DB_ROOT_PW} \
+        echo mysql-server-5.5 mysql-server/root_password password ${mysql_root_passwd} \
             | with_sudo debconf-set-selections
-        echo mysql-server-5.5 mysql-server/root_password_again password ${DB_ROOT_PW} \
+        echo mysql-server-5.5 mysql-server/root_password_again password ${mysql_root_passwd} \
             | with_sudo debconf-set-selections
         install_packages mysql-server
 
@@ -24,7 +24,7 @@ mysql__install_with_root_passwd() {
         err_msg WARNING: CentOS MySQL installation may still need some work
 
         install_packages mysql-server
-        mysqladmin -u root password ${DB_ROOT_PW}
+        mysqladmin -u root password ${mysql_root_passwd}
     fi
 
     echo Done installing MySQL.
