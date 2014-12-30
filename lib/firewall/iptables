@@ -91,16 +91,10 @@ iptables__config_save() {
 	with_sudo iptables-save > /etc/iptables.rules
 
 	# restore rules on startup
-	if is_platform ubuntu; then
-		with_sudo touch /etc/network/if-pre-up.d/iptablesload
-		with_sudo echo "#!/bin/sh
-	iptables-restore < /etc/iptables.rules
-	exit 0" > /etc/network/if-pre-up.d/iptablesload
+	with_sudo touch /etc/network/if-pre-up.d/iptablesload
+	with_sudo echo "#!/bin/sh
+iptables-restore < /etc/iptables.rules
+exit 0" > /etc/network/if-pre-up.d/iptablesload
 
-		with_sudo chmod +x /etc/network/if-pre-up.d/iptablesload
-	elif is_platform fedora; then
-
-	else
-		err_msg "iptables module not supported yet!"
-	fi
+	with_sudo chmod +x /etc/network/if-pre-up.d/iptablesload
 }
