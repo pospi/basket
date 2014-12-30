@@ -397,7 +397,7 @@ if using_yum; then
 
     is_package_installed() {
         local package_name=$1
-        with_sudo rpm --quiet ${package_name}
+        with_sudo "rpm -q --quiet ${package_name}"
     }
 
     upgrade_packages() {
