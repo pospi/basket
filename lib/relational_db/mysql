@@ -19,12 +19,12 @@ mysql__install_with_root_passwd() {
             | with_sudo debconf-set-selections
         install_packages mysql-server
 
-    # On Centos, still need to figure out password config
-    elif is_platform centos; then
-        err_msg WARNING: CentOS MySQL installation may still need some work
-
+    # On RedHat systems we can just use mysqladmin to set the initial pwd
+    elif is_platform centos || is_platform fedora; then
         install_packages mysql-server
-        mysqladmin -u root password ${mysql_root_passwd}
+        with_sudo service mysqld start
+        with_sudo mysqladmin -u root password ${mysql_root_passwd}
+        with_sudo chkconfig mysqld on
     fi
 
     echo Done installing MySQL.
