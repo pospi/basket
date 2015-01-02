@@ -31,10 +31,17 @@ basket__path() {
     echo "$DIR"
 }
 
+# Load up basket library files (from above dir)
+
+basket__loaded_files=()
+
 basket__include() {
     local path=$1
+    local fullpath="$(basket__path)/lib/${path}"
 
-    . "$(basket__path)/lib/${path}"
+    basket__loaded_files=("${basket__loaded_files[@]}" "$fullpath")
+
+    . $fullpath
 }
 
 #
@@ -244,7 +251,14 @@ create_webserver_home_dir() {
 with_basket_sourced() {
     local commands=$@
 
-    echo ". \"$(basket__path)/basket\"; ${commands} "
+    local includes=""
+
+    for lib in "${basket__loaded_files[@]}"
+	do
+		includes="$includes; . ${lib}"
+	done
+
+    echo ". \"$(basket__path)/basket\" $includes; ${commands} "
 }
 
 as_user() {
