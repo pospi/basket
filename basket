@@ -523,4 +523,5 @@ ubuntu_language_pack() {
 
 await_input() {
     read -p "$1" -n 1 -s
+    echo ""
 }
