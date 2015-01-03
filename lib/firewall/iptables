@@ -40,11 +40,15 @@ iptables__config_finish() {
 	with_sudo iptables-save > /etc/iptables.rules
 
 	# restore rules on startup
-	with_sudo touch /etc/network/if-pre-up.d/iptablesload
-	with_sudo echo "#!/bin/sh
-iptables-restore < /etc/iptables.rules
-exit 0" > /etc/network/if-pre-up.d/iptablesload
+	if is_dir /etc/network; then
+		with_sudo touch /etc/network/if-pre-up.d/iptablesload
+		with_sudo echo "#!/bin/sh
+	iptables-restore < /etc/iptables.rules
+	exit 0" > /etc/network/if-pre-up.d/iptablesload
 
-	with_sudo chmod +x /etc/network/if-pre-up.d/iptablesload
+		with_sudo chmod +x /etc/network/if-pre-up.d/iptablesload
+	else
+		err_msg "Unable to save iptables config, network scripts directory not found"
+	fi
 }
 
