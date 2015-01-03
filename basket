@@ -33,11 +33,15 @@ basket__path() {
 
 # Load up basket library files (from above dir)
 
+basket__include_path() {
+	echo "$(basket__path)/lib"
+}
+
 basket__loaded_files=()
 
 basket__include() {
     local path=$1
-    local fullpath="$(basket__path)/lib/${path}"
+    local fullpath="$(basket__include_path)/${path}"
 
     basket__loaded_files=("${basket__loaded_files[@]}" "$fullpath")
 
