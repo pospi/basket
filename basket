@@ -31,10 +31,14 @@ basket__path() {
     echo "$DIR"
 }
 
+basket__include_path() {
+	echo "$(basket__path)/lib"
+}
+
 basket__include() {
     local path=$1
 
-    . "$(basket__path)/lib/${path}"
+    . "$(basket__include_path)/${path}"
 }
 
 #
