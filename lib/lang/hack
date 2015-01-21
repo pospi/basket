@@ -21,8 +21,8 @@ hhvm__install_from_source() {
         mkdir -p Downloads
         pushd_q Downloads
             git clone git://github.com/facebook/hhvm.git
-            export CMAKE_PREFIX_PATH=`pwd`
             pushd_q hhvm
+                export CMAKE_PREFIX_PATH=`pwd`
                 git checkout ${version}
                 git submodule update --init --recursive
                 cmake .
