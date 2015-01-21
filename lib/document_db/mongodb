@@ -7,6 +7,14 @@ mongodb__install() {
     if using_yum; then
         mongodb__install__yum
         return $?
+    elif using_apt; then
+        # add package source
+        with_sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 7F0CEB10
+        sudo add-apt-repository 'deb http://downloads-distro.mongodb.org/repo/ubuntu-upstart dist 10gen'
+
+        # install
+        install_packages mongodb-org
+        return $?
     fi
 
     err_msg Not supported on this platform yet
