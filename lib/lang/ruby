@@ -14,14 +14,18 @@
 ####
 
 ruby__rvm_install_standalone() {
-	gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3
+	if using_yum; then
+		gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3
+	fi
 	curl -sSL https://get.rvm.io | bash -s stable
 	source ~/.rvm/scripts/rvm
 	rvm requirements
 }
 
 ruby__rvm_install_multiuser() {
-	gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3
+	if using_yum; then
+		gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3
+	fi
 	# :NOTE: the 'sudo' prefix is important, and tells RVM what to do
 	curl -sSL https://get.rvm.io | sudo bash -s stable
 }
