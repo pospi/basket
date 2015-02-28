@@ -88,6 +88,12 @@ is_dir() {
     [[ -d $dir ]]
 }
 
+is_symlink() {
+    local dir=$1
+
+    [[ -h $dir ]]
+}
+
 is_yes_or_no() {
     local value=$1
 
